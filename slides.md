@@ -31,7 +31,9 @@ ZHANG YU
 
 - **React** 中的diff算法，并不是新旧Fiber节点互相做diff，而是旧的Fiber节点和新的 ***JSX对象*** 做diff。
 
-- **React** 中的diff，并**不是diff当前节点**，而且通过diff产生或复用子节点，也就是diff不能决定是否需要更新当前组件。
+- **React** 中的diff并不会决定组件是否会更新，只会决定是否要复用Fiber节点。
+
+- **React** 中的diff并不是作用于当前的Fiber节点，而是作用于子节点。
 
 
 ---
@@ -89,20 +91,19 @@ const HooksDispatcherOnUpdate: Dispatcher = {
 
 <v-clicks>
 
-1. 发起更新调度，确定WorkInProgress节点。
+1. 发起更新调度，确定**WorkInProgress**节点。
+
 2. 节点进入**beginWork**阶段，深度遍历，将WorkInProgress执行子级节点，此阶段就是**diff**发生的阶段。
+
 3. 节点进入**completeWork**阶段，将WorkInProgress指向同级或父级节点，同时组装**EffectList**，标记那些节点包含副作用。
+
 4. 节点树遍历完成后进入**commitRoot**阶段。
+
 5. **EffectList**中的节点经过**BeforeMutation**、**Mutation**、**Layout**阶段处理。
+
 6. 页面呈现。
   
 </v-clicks>
-
-<br/>
-<br/>
-<br/>
-<br/>
-<br/>
 
 <v-click>
 
