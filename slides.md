@@ -545,3 +545,198 @@ function updateCallback<T>(callback: T, deps: Array<mixed> | void | null): T {
 </v-click>
 
 ---
+
+# useEffect和useLayoutEffect
+
+平时可能很少会使用**useLayoutEffect**，它和**useEffect**有什么区别呢？
+
+<v-clicks>
+    
+其实它们之间最大的区别只是同步和异步的区别。
+    
+    - useEffect 在一次渲染流程结束，页面呈现后的某一时刻异步调用。
+    - useLayoutEffect 在一次渲染流程结束，页面呈现之前同步调用，按照执行时机来讲它等同于`componentDidMount`。
+    
+</v-clicks>
+
+<v-click>
+
+也就是说会影响DOM渲染的操作，都可以用**useLayoutEffect**，比如想在组件**Mount**后，拿到实际DOM节点做一些操作。
+
+如果使用**useEffect**的话，页面呈现后的某一时刻才调用我们的DOM修改，可能会造成屏幕闪烁。
+
+</v-click>
+
+---
+
+# useRef
+
+**useRef**大多数情况都是用来获取DOM节点。
+
+除了普通的用法，我们也可以用来保存函数体内的临时变量。
+
+```javascript
+const value = useRef({ value: 1 });
+```
+
+修改它也不会使组件发生更新，所以它不应该用来作为**useEffect**的依赖项。
+
+<v-click>
+
+```javascript
+useEffect(()=>{
+    // xxxx
+}, [eleRef.current])
+```
+
+如果代码这样才生效，一定是没写对。
+
+</v-click>
+
+---
+
+在开阔点思路，函数也是变量，其实也可以用**useRef**。
+
+```javascript
+const callback = useRef(() => null);
+```
+
+使用**useRef**来仅仅用来保存函数甚至会优于**useCallback**。
+
+<v-click>
+
+用闭包和**useRef**来实现一个最强的**useCallback**。
+
+```javascript {all|1,2|5,7,8,9,10,11|all}
+const useCallback = (fn) => {
+  const fnRef = useRef(fn);
+  const cbRef = useRef();
+  
+  fnRef.current = fn;
+  
+  if (!cbRef.current) {
+    cbRef.current = (...args) => {
+      return fnRef.current(args);
+    };
+  }
+
+  return cbRef.current;
+}
+```
+
+</v-click>
+
+---
+
+# 派生state
+
+派生state用通俗的话来讲就是将props的值赋值给state。
+
+这个功能在类组件里实现非常简单，有专门提供的生命周期函数**getDerivedStateFromProps**，但是**Hooks**没有实现这个方法。
+
+```javascript
+static getDerivedStateFromProps(props){
+    if(props.value){
+        return { value: props.value }; // 把props的value赋值给state的value
+    }
+}
+```
+
+为什么会有这样的需求呢？其实在组件开发过程中很常见。
+
+---
+
+对使用者来说是受控组件，必须传入**value**和**onChange**。
+
+```javascript
+const Input = ({ value, onChange }) =>{
+    return <input value={value} onChange={onChange} />
+}
+```
+
+一个好的组件，不应该需要使用者提供额外的**value**来控制输入框。
+
+<v-click>
+
+对使用者是非受控组件，只能通过**onChange**获取值，无法传入**value**修改值 。
+
+```javascript
+const Input = ({ onChange }) =>{
+    const [value,setValue] = useState();
+    return <input value={value} onChange={(event)=>{
+        setValue(event.target.value);
+        onChange(event);
+    }} />
+}
+```
+
+如果由内部控制，外部就无法修改输入框的值。
+
+<v-click>
+
+---
+
+一个输入框组件，受控和非受控应该是可选的，我们希望没有传入**value**的时候，输入框可以输入值，传入**value**时，输入框的值由外部来控制。
+
+```javascript {all|4,5,6|all}
+const Input = ({ value, onChange }) =>{
+    const [inputValue, setInputValue] = useState(value);
+    
+    useEffect(()=>{
+        setInputValue(value); // 外部value值改变，同步内部value值
+    }, [value])
+    
+    const onValueChange=(event)=>{
+        setInputValue(event.target.value);
+        onChange?.(event) // 输入框值改变，同时修改外部值
+    }
+    
+    return <input value={inputValue} onChange={onValueChange} />
+}
+```
+
+很多时候组件开发会遇到这样的情况，想把**props**中的**value**赋值给**state**，这种情况就叫派生**state**。
+
+<v-click>
+
+如果外部的**props**改变，我们又需要重新设置**state**，可能使用上述方法，但是这种写法其实是有问题的。
+
+首先，外部**value**改变，触发该 **<Input>** 组件更新，第一次"render"。
+
+内部**useEffect**检查到依赖项**value**改变，调用**setInputValue**，第二次"render"。
+
+这样的写法是无法避免第二次渲染的问题。
+
+</v-click>
+
+---
+
+# React官网上的答案
+
+```javascript {all|1,2|4,5,6,78|all}
+function Input({value,onChange}) {
+  const [inputValue, setInputValue] = useState(value);
+  const prevValue = useRef(null);
+
+  if (value !== prevValue.current) {
+    // value 自上次渲染以来发生过改变。更新 inputValue。
+    setInputValue(value);
+    prevValue.current = value;
+  }
+  
+  const onInputChange = (event) =>{
+    setInputValue(event.target.value);
+    onChange(event);
+  }
+
+  return <input value={inputValue} onChange={onInputChange}/>;
+}
+```
+
+> 初看这或许有点奇怪，但渲染期间的一次更新恰恰就是 getDerivedStateFromProps 一直以来的概念。
+
+它依然会执行两次，但是不是两次"render"。
+
+实际官网方案也不是最优解。
+
+---
