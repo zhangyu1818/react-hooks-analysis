@@ -134,8 +134,7 @@ const HooksDispatcherOnUpdate: Dispatcher = {
 该方法执行函数组件，取到函数组件返回的**children**
 
 ```ts {all|7-10|13|15|13|all}
-export function renderWithHooks<Props, SecondArg>(): // ...
-any {
+export function renderWithHooks<Props, SecondArg>(): any {
   // 省略代码...
   currentlyRenderingFiber = workInProgress;
   // 使用mount还是update的hook
@@ -247,7 +246,7 @@ useState2 => index = 1, state = state1, index + 1 // 我是谁我在哪 ？？�
 
 即便**props**的值是相同的，但是由于地址引用不同，所以两者不相等。
 
-在正常情况下，父级改变后，子组件**_一定会更新_**。
+在正常情况下，父级改变后，子组件***一定会更新***。
 
 </v-click>
 
