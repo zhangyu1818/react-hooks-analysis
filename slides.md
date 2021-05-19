@@ -65,52 +65,6 @@ const HooksDispatcherOnUpdate: Dispatcher = {
 
 ---
 
-# 一个 JSX 对象
-
-```json
-{
-  "$$typeof": REACT_ELEMENT_TYPE,
-  type,
-  props
-}
-```
-
-- 不同的**JSX 对象**拥有不同的 **$$typeof** 字段，它的值默认为数字，会升级为**symbol**。
-
-- **type**字段则是该**JSX 对象**的表现形式，通常为字符串（原生组件）、函数、类。
-
-- **props**字段则是过滤了**key**和**ref**的对象，一个父级函数可以获取任意**children**对象的**props**。
-
----
-
-# 一次渲染的流程
-
-<v-clicks>
-
-1. 发起更新调度，确定**WorkInProgress**节点。
-
-2. 节点进入**beginWork**阶段，深度遍历，将 WorkInProgress 执行子级节点，此阶段就是**diff**发生的阶段。
-
-3. 节点进入**completeWork**阶段，将 WorkInProgress 指向同级或父级节点，同时组装**EffectList**，标记那些节点包含副作用。
-
-4. 节点树遍历完成后进入**commitRoot**阶段。
-
-5. **EffectList**中的节点经过**BeforeMutation**、**Mutation**、**Layout**阶段处理。
-
-6. 页面呈现。
-
-</v-clicks>
-
-<v-click>
-
-2 - 3 阶段称为**render**阶段，这个阶段在未来的**Concurrent Mode**中是可中断的。
-
-4 - 5 阶段称为**commit**阶段，这个阶段包含生命周期和**Effect Hooks**的处理，不可中断。
-
-</v-click>
-
----
-
 # 一个函数组件是如何 Render 的
 
 <v-clicks>
@@ -767,3 +721,128 @@ function Input({ value, onChange }) {
      allow="accelerometer; ambient-light-sensor; camera; encrypted-media; geolocation; gyroscope; hid; microphone; midi; payment; usb; vr; xr-spatial-tracking"
      sandbox="allow-forms allow-modals allow-popups allow-presentation allow-same-origin allow-scripts"
    ></iframe>
+
+# 数据管理库是怎么更新数据的？
+
+在React里，我们的想要触发组件更新，只能用相关的**setState**方法，但是第三方的数据管理库是怎么做到更新的呢？
+
+像Redux，它只是一个与React毫无关系的JS包，想要在Raect里使用还需要安装React-Redux。
+
+<v-click>
+
+它们的数据更新原理都离不开**forceUpdate**。
+
+</v-click>
+
+<v-click>
+
+```javascript
+const useForceUpdate = () => {
+  return useReducer((x) => x + 1, 0)[1];
+};
+```
+在Hook里的实现无非就是强制的设置一个**state**值，让它更新数据。
+
+</v-click>
+
+---
+
+Redux是一个发布订阅的机制，只需要在**subscribe**里添加上**forceUpdate**，就可以很轻松的实现**React-Redux**。
+
+```javascript {all|2|3|4|5|6,7,8|9,10,11,12,13,14,15|16|all}
+const useSelector = (selector) => {
+  const [, forceUpdate] = useReducer((s) => s + 1, 0);
+  const { store } = useReduxContext();
+  const lastState = useRef();
+  const selectedState = selector(store.getState());
+  useEffect(() => {
+    lastState.current = selectedState;
+  });
+  useEffect(() => {
+    return store.subscribe(() => {
+      const newState = store.getState();
+      if (newState !== lastState.current) {
+        forceUpdate();
+      }
+    });
+  }, []);
+  return selectedState;
+};
+```
+<v-click>
+
+**React-Redux**的官方**Hook**方案其实就是这样的。现在流行的第三方数据流，基本都是这样订阅更新再**forceUpdate**的方案。
+
+</v-click>
+
+---
+
+# 更好的React的数据流方案
+
+```javascript
+const reducer = (value, type) => (type === "increase" ? value + 1 : value - 1);
+const { Provider } = React.createContext();
+// ...
+const [state, dispatch] = useReducer(reducer, 0);
+return <Provider value={{ state, dispatch }} >
+// ...
+```
+<v-click>
+
+官方的方案将**Hooks**放进**Context**，这种方案与社区第三方方案的不同点在于它不需要**forceUpdate**，每次更新的同时**Context**也会改变，完完全全的官方**Hooks**。
+
+社区基于订阅机制**forceUpdate**更新如**React-Reudx**，它们的**Context**是不变的，所以才能提供一个稳定可控的**store**。
+
+</v-click>
+
+---
+
+# Context的问题
+
+**Context**解决方案的问题比较严重，主要就是无关的、重复的渲染。
+
+```javascript
+    // context => { a:1, b:2 }
+    // 组件A
+    const { a } = useContext
+    // 组件B
+    const { b } = useContext
+    b += 1
+``` 
+
+一旦**Context**更新，其余所有使用了**Context**的组件都会更新，原因就是它是一个整体。
+
+其实这个问题官方也提供了一个不太友好的**feature**。
+
+---
+
+# observedBits
+
+这算是一个隐藏的比较深的东西，我推测从19年开始就有了。
+
+```javascript
+const bits = {
+  user: 0b01,
+  password: 0b10,
+}
+const context = useContext(Context, bits.user); // 这个context使用了user字段
+
+let result = 0;
+// 标识user字段发生变化
+if (oldValue.user !== newValue.user){
+  result |= bits.user; // 0 -> 0b01
+}
+return result;
+```
+
+通过二进制的判断是否需要更新。
+
+<CodeSandBox>
+<iframe src="https://codesandbox.io/embed/zen-ishizaka-q0yzi?fontsize=14&hidenavigation=1&theme=dark"
+     style="width:100%; height:500px; border:0; border-radius: 4px; overflow:hidden;"
+     title="zen-ishizaka-q0yzi"
+     allow="accelerometer; ambient-light-sensor; camera; encrypted-media; geolocation; gyroscope; hid; microphone; midi; payment; usb; vr; xr-spatial-tracking"
+     sandbox="allow-forms allow-modals allow-popups allow-presentation allow-same-origin allow-scripts"
+  />
+</CodeSandBox>
+
