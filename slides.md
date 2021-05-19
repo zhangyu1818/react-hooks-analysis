@@ -722,6 +722,8 @@ function Input({ value, onChange }) {
      sandbox="allow-forms allow-modals allow-popups allow-presentation allow-same-origin allow-scripts"
    ></iframe>
 
+---
+
 # 数据管理库是怎么更新数据的？
 
 在React里，我们的想要触发组件更新，只能用相关的**setState**方法，但是第三方的数据管理库是怎么做到更新的呢？
