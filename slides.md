@@ -87,7 +87,7 @@ const HooksDispatcherOnUpdate: Dispatcher = {
 
 该方法执行函数组件，取到函数组件返回的**children**
 
-```ts {all|7-10|13|15|13|all}
+```ts {all|5-8|11|13|11|all}
 export function renderWithHooks<Props, SecondArg>(): any {
   // 省略代码...
   currentlyRenderingFiber = workInProgress;
@@ -226,10 +226,10 @@ const App = () => {
 
 <CodeSandBox>
 <iframe
-  src="https://codesandbox.io/embed/romantic-napier-o2lwd?expanddevtools=1&fontsize=14&hidenavigation=1&theme=dark"
+  src="https://codesandbox.io/embed/romantic-napier-o2lwd?expanddevtools=1&fontsize=14&hidenavigation=1"
   style="
     width: 100%;
-    height: 100%;
+    height: 99%;
     border: 0;
     border-radius: 4px;
     overflow: hidden;
@@ -537,7 +537,7 @@ useEffect(() => {
 }, [eleRef.current]);
 ```
 
-如果代码这样才生效，一定是没写对。
+这样写是无效的。
 
 </v-click>
 
@@ -703,9 +703,13 @@ function Input({ value, onChange }) {
 
 > 初看这或许有点奇怪，但渲染期间的一次更新恰恰就是 getDerivedStateFromProps 一直以来的概念。
 
+<v-click>
+
 它依然会执行两次，但是不是两次"render"。
 
 实际官网方案也不是最优解。
+
+</v-click>
 
 ---
 
@@ -848,3 +852,20 @@ return result;
   />
 </CodeSandBox>
 
+---
+
+官方的方案
+
+```javascript
+const {a} = useContextSelector(Context, context => context.a);
+const {b} = useContextSelector(Context, context => context.b);
+const derived = useMemo(() => computeDerived(a, b), [a, b]);
+```
+
+只有在**experimental**包才会有的功能。
+
+---
+
+# Tailwindcss
+
+[Tailwind CSS](https://tailwindcss.com/) 是一个功能类优先的 CSS 框架，它集成了诸如 flex, pt-4, text-center 和 rotate-90 这样的的类，它们能直接在脚本标记语言中组合起来，构建出任何设计。
